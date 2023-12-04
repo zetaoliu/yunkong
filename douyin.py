@@ -21,7 +21,7 @@ class Douyin:
         # 检查宝箱时间
         self.redis.set(f'{item}ss', 0)
 
-        self.redis.set(f'{item}isHomePage', 0)  # 是否是金币页面[因为是金币页面是webview]
+        self.redis.set(f'{item}isHomePage', 1)  # 是否是金币页面[因为是金币页面是webview]
 
         self.redis.set(f'{item}isShopping', 0)  # 逛街可以领三次
 
@@ -43,7 +43,7 @@ class Douyin:
 
     # 是否在首页
     def isHomePage(self):
-        if self.redis.get(f'{self.phoneKey}isHomePage') == 1:
+        if int(self.redis.get(f'{self.phoneKey}isHomePage')) == 0:
             return False
             # 判断是否存在首页标志元素
         if self.d(text="首页").exists and self.d(text="朋友").exists and self.d(text="消息").exists and self.d(
@@ -54,7 +54,7 @@ class Douyin:
 
     # 判断金币收益是否大于3000
     def isSuccess(self):
-        if self.redis.get(f'{self.phoneKey}isHomePage') == 1:
+        if int(self.redis.get(f'{self.phoneKey}isHomePage')) == 1:
             self.d.click(0.196, 0.155)
             if self.checkMoney():
                 time.sleep(3)
@@ -69,7 +69,6 @@ class Douyin:
         element = self.d.xpath('//*[contains(@text, "金币收益")]')
         money = element.get_text()
         number = money.replace('金币收益', '')
-        print(number)
         if int(number) > 3000:
             return True
         else:
@@ -97,7 +96,7 @@ class Douyin:
 
     def checkBox(self):
         jj = int(time.time())
-        if jj - self.redis.get(f'{self.phoneKey}ss') > 20 * 60:
+        if int(jj - int(self.redis.get(f'{self.phoneKey}ss'))) > 20 * 60:
             self.redis.set(f'{self.phoneKey}ss', jj)
             return True
         if self.d(text="开宝箱").exists:
@@ -191,20 +190,23 @@ class Douyin:
         if self.checkFirstMoneyIn():
             self.closeApp()
             return
+        else:
+            self.sideSlip()
+            self.sideSlip()
         self.readVideo()
         if self.checkBox():
             self.clickBoxPage()
             self.clickBox()
             self.closeBox()
             tt = int(time.time())
-            if self.redis.get(f'{self.phoneKey}isShopping') > 0 and (
+            if int(self.redis.get(f'{self.phoneKey}isShopping')) > 0 and (
                     tt - int(self.redis.get(f'{self.phoneKey}dd')) > self.t):
                 self.searchShopping()
                 self.readShopping()
                 self.closeShopping()
                 self.sideSlip()  # 回到首页
             # 判断是否超过了金币收益
-            if self.redis.get(f'{self.phoneKey}isShopping') == 0:
+            if int(self.redis.get(f'{self.phoneKey}isShopping')) == 0:
                 if self.isSuccess():
                     self.sideSlip()
                     return
