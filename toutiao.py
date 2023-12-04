@@ -14,12 +14,13 @@ class Toutiao:
     # 我们一天可以提现0.5
     # 所以大于9500就可以提现了【就可以关闭app】
     # 去开箱子的时候才可以检查
+    # 视频返回的时候会重新刷新页面这个时候需要多下滑几下
     def isSuccess(self):
         # 9500就可以下一个app
         element = self.d.xpath('//*[contains(@text, "金币")]')
         money = element.get_text()
         number = money.replace('金币', '')
-        if int(number) > 9500:
+        if int(number) > 25000:
             return True
         else:
             return False
@@ -68,6 +69,9 @@ class Toutiao:
         if self.d(description="返回").exists():
             self.d(description="返回").click()
             return
+        if self.d(text="残忍离开").exists():
+            self.d(text="残忍离开").click()
+            return
         self.d.click(0.056, 0.059)
 
     # 是否是内容页，还是直播页，还是啥页
@@ -102,8 +106,6 @@ class Toutiao:
     # 直播返回
     def liveBack(self):
         time.sleep(3)
-
-        layer = self.d.dump_hierarchy()
         if self.d(description="返回").exists:
             self.d(description="返回").click()
             return
@@ -313,3 +315,4 @@ if __name__ == '__main__':
     toutiao = Toutiao("AKGR9K2914901715")
     toutiao.startApp()
     print(toutiao.startRun())
+

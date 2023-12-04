@@ -1,6 +1,7 @@
 import uiautomator2 as u2
 import time
 import random
+import redistool
 
 
 # 描述
@@ -10,27 +11,39 @@ import random
 # 3000就可以关app
 
 class Douyin:
-    dd = 0
-    ss = 0
-    isFirstIn = True
 
-    def __init__(self, item, isHomePage=False, isShopping=3, shopTime=10 * 60):
+    def __init__(self, item, shopTime=10 * 60):
+        self.phoneKey = item
         self.d = u2.connect_usb(item)
-        self.x = isHomePage  # 是否是金币页面[因为是金币页面是webview]
-        self.s = isShopping
+        self.redis = redistool.RedisTool()
+        # 购物时间
+        self.redis.set(f'{item}dd', 0)
+        # 检查宝箱时间
+        self.redis.set(f'{item}ss', 0)
+
+        self.redis.set(f'{item}isHomePage', 0)  # 是否是金币页面[因为是金币页面是webview]
+
+        self.redis.set(f'{item}isShopping', 0)  # 逛街可以领三次
+
+        # 逛街间隔时间是600
         self.t = shopTime
 
     # 关闭app
     def closeApp(self):
         self.d.app_stop('com.ss.android.ugc.aweme.lite')
+        self.cleanCache()
+
+    def cleanCache(self):
+        self.redis.delKey(self.phoneKey)
 
     # 启动头条app
     def startApp(self):
         self.d.app_start('com.ss.android.ugc.aweme.lite')
+        time.sleep(5)
 
     # 是否在首页
     def isHomePage(self):
-        if self.x:
+        if self.redis.get(f'{self.phoneKey}isHomePage') == 1:
             return False
             # 判断是否存在首页标志元素
         if self.d(text="首页").exists and self.d(text="朋友").exists and self.d(text="消息").exists and self.d(
@@ -41,7 +54,7 @@ class Douyin:
 
     # 判断金币收益是否大于3000
     def isSuccess(self):
-        if self.x:
+        if self.redis.get(f'{self.phoneKey}isHomePage') == 1:
             self.d.click(0.196, 0.155)
             if self.checkMoney():
                 time.sleep(3)
@@ -56,6 +69,7 @@ class Douyin:
         element = self.d.xpath('//*[contains(@text, "金币收益")]')
         money = element.get_text()
         number = money.replace('金币收益', '')
+        print(number)
         if int(number) > 3000:
             return True
         else:
@@ -65,7 +79,7 @@ class Douyin:
     def sideSlip(self):
         time.sleep(3)
         self.d.swipe_ext("right", 1)
-        self.x = False
+        self.redis.set(f'{self.phoneKey}isHomePage', 0)
 
     # 查看视频
     # 因为看这个视频是有钱的可以多看点
@@ -83,11 +97,11 @@ class Douyin:
 
     def checkBox(self):
         jj = int(time.time())
-        if jj - self.ss > 20 * 60:
-            self.ss = jj
+        if jj - self.redis.get(f'{self.phoneKey}ss') > 20 * 60:
+            self.redis.set(f'{self.phoneKey}ss', jj)
             return True
         if self.d(text="开宝箱").exists:
-            self.ss = jj
+            self.redis.set(f'{self.phoneKey}ss', jj)
             return True
 
         return False
@@ -97,7 +111,7 @@ class Douyin:
     def clickBoxPage(self):
         time.sleep(3)
         self.d.click(0.504, 0.959)
-        self.x = True
+        self.redis.set(f'{self.phoneKey}isHomePage', 1)
 
     # 点击宝箱
     def clickBox(self):
@@ -115,12 +129,11 @@ class Douyin:
         self.d.swipe_ext("up", 0.2)
         time.sleep(3)
         self.d.click(0.442, 0.826)
-        self.s = self.s - 1
+        self.redis.decr(f'{self.phoneKey}isShopping')
 
     # 逛街
     # 60-70
     def readShopping(self):
-        layer = self.d.dump_hierarchy()
         rand = [60, 65, 70]
         count = random.choice(rand)
         i = 0
@@ -158,7 +171,7 @@ class Douyin:
             self.d(text='坚持退出').click()
         time.sleep(3)
         self.d.swipe_ext("down", 1)
-        self.dd = int(time.time())
+        self.redis.set(f'{self.phoneKey}dd', int(time.time()))
 
     # 第一次进来还是要判断一下是否金额已经超过3000
     def checkFirstMoneyIn(self):
@@ -184,13 +197,14 @@ class Douyin:
             self.clickBox()
             self.closeBox()
             tt = int(time.time())
-            if self.s > 0 and tt - self.dd > self.t:
+            if self.redis.get(f'{self.phoneKey}isShopping') > 0 and (
+                    tt - int(self.redis.get(f'{self.phoneKey}dd')) > self.t):
                 self.searchShopping()
                 self.readShopping()
                 self.closeShopping()
                 self.sideSlip()  # 回到首页
             # 判断是否超过了金币收益
-            if self.s == 0:
+            if self.redis.get(f'{self.phoneKey}isShopping') == 0:
                 if self.isSuccess():
                     self.sideSlip()
                     return
