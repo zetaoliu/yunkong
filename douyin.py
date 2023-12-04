@@ -136,6 +136,7 @@ class Douyin:
         rand = [60, 65, 70]
         count = random.choice(rand)
         i = 0
+        rang = "up"
         for item in range(100):
             if self.isSuccessReadFinish():
                 self.closeSuccessWindow()
@@ -143,7 +144,9 @@ class Douyin:
             timeSleep = [1, 2, 3]
             a = random.choice(timeSleep)
             time.sleep(a)
-            self.d.swipe_ext("up", 0.3)
+            self.d.swipe_ext(rang, 0.3)
+            if item % 2 == 1:
+                rang = "down"
             i = i + a
             if i >= count:
                 return
